@@ -19,18 +19,25 @@
 
     const vertexSource = `#version 300 es
     in vec2 a_position;
+      in vec4 a_color;
+      
+      out vec4 v_color; // Pass color output to fragment shader
+
       void main() {
-        gl_Position = vec4(.65, 0.65, 0.0, 1.0); // TODO(student): move me
-        gl_PointSize = 250.0;                     // TODO(student): resize me 
-        //top right corner is (1,1)
+        gl_Position = vec4(a_position, 0.0, 1.0);
+        gl_PointSize = 250.0;
+        v_color = a_color; // Forward attribute to fragment shader
       }`;
      
 
     const fragmentSource = `#version 300 es
-      precision mediump float;
+   precision mediump float;
+      
+      in vec4 v_color; // Color output from vertex shader
       out vec4 outColor;
+
       void main() {
-        outColor = vec4(0.3, 0.9, 0.5, 1.0);     // TODO(student): recolor me
+        outColor = v_color;
       }`;
      
 
@@ -58,6 +65,38 @@
     }
 
     const program = createProgram(gl, vertexSource, fragmentSource);
+
+const positions = new Float32Array([
+      0.65,  0.65,  // Point 1
+     -0.5,  -0.25    // Point 2
+    ]);
+const colors = new Float32Array([
+      1.0, 0.0, 0.0, 1.0, // Red for Point 1
+      0.0, 1.0, 0.0, 1.0  // Green for Point 2
+    ]);
+    
+const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+    const colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+
+    // Create & Bind VAO
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+
+    // Setup Position Buffer
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+    // Setup Color Buffer
+    const colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(colorAttributeLocation);
+    gl.vertexAttribPointer(colorAttributeLocation, 4, gl.FLOAT, false, 0, 0);
+
+
     function render() {
       const dpr = window.devicePixelRatio || 1;
       const w = Math.round(canvas.clientWidth * dpr);
@@ -69,12 +108,12 @@
       gl.viewport(0, 0, canvas.width, canvas.height);
 
       gl.useProgram(program);
-     
+     gl.bindVertexArray(vao);
       
       gl.clearColor(0.10, 0.12, 0.16, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       
-      gl.drawArrays(gl.POINTS, 0, 1);
+      gl.drawArrays(gl.POINTS, 0, 2);
       
       
     }
