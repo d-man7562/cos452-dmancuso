@@ -1,4 +1,0 @@
-a) rendered Yes!
-b) flip triangle Yes!
-c) Recolored to blue
-d) Clipping the triangle looks as if the triangle stretches beyond the webpage.
