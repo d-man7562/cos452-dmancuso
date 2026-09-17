@@ -1,5 +1,5 @@
-a) rendered ✅
-b) flip triangle ✅
-c) Recolored to blue ✅
-d) Clipping the triangle looks as if the triangle stretches beyond the webpage. ✅
+a) Successfully rendered the triangle ✅
+b) Successfully flipped the triangle ✅
+c) Recolored the triangle to blue ✅
+d) Clipping the triangle looks as if the triangle stretches beyond the webpage. 
 Extra credit is in lab3extracredit.html
