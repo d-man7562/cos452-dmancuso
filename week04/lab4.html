@@ -4,13 +4,37 @@
   <meta charset="utf-8">
   <title>Week 4 Starter -- Attributes & Uniforms</title>
   <style>
-    html, body { height: 100%; margin: 0; }
+    html, body { height: 100%; margin: 0;overflow: hidden; /* Stops scrollbars permanently */ }
     canvas { width: 100%; height: 100%; display: block; }
+  .overlay-title {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ffffff;
+      font-size: 2rem;
+      font-weight: bold;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      pointer-events: none; /* Prevents text from blocking canvas mouse clicks */
+      margin: 0;
+      text-align: center;      /* Keeps wrapped lines centered */
+      width: 90%;
+      box-sizing: border-box;
+
+    }
   </style>
 </head>
 <body>
-  <canvas id="gl-canvas"></canvas>
+
+  <div class="canvas-container">
+    <h1 class="overlay-title">my prediction: green black and pink will combine to make a yucky brown color</h1>
+    <canvas id="gl-canvas"></canvas>
+  </div>
+  </style>
+
+ 
   <script>
+    
     const canvas = document.getElementById("gl-canvas");
     const gl = canvas.getContext("webgl2");
     if (!gl) {
@@ -61,7 +85,7 @@
     const program = createProgram(gl, vertexSource, fragmentSource);
 
     const positions = new Float32Array([
-       0.0,  0.5,
+       0.0,  1.0,
       -0.5, -0.5,
        0.5, -0.5,
     ]);
@@ -71,9 +95,9 @@
 
     // TODO(student): change these corner colors
     const colors = new Float32Array([
-      1.0, 0.0, 0.0,   // top
-      0.0, 1.0, 0.0,   // bottom-left
-      0.0, 0.0, 1.0,   // bottom-right
+      0, 1.0, 0.0,   // top
+      0.0, 0, 0.0,   // bottom-left
+      1.0, 105.0/255.0, 180.0/255.0,   // bottom-right
     ]);
     const colorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
@@ -102,15 +126,19 @@
       gl.viewport(0, 0, canvas.width, canvas.height);
 
       gl.useProgram(program);
-      gl.uniform1f(uBrightness, 1.0);   // TODO(student): try 0.6, or animate it
+        const t = Date.now() / 1000;
+        const bright  =  0.75 + 0.25 * Math.sin(t * 3)
+      gl.uniform1f(uBrightness, bright);   // TODO(student): try 0.6, or animate it
 
       gl.clearColor(0.10, 0.12, 0.16, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      requestAnimationFrame(render);
     }
 
     window.addEventListener("resize", render);
     render();
+    
   </script>
 </body>
 </html>
