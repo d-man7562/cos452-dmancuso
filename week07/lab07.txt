@@ -1,6 +1,10 @@
+ https://d-man7562.github.io/cos452-dmancuso/week07/lab07.html
+
 (a): resize the window wide, then tall.
 The square should stay square. Which line below makes that happen?
 The orthographic() call makes this happen. The proportions of the screen are first calculated by const aspect.
 Orthographic() applies this ratio to the projection matrix within a [-1,1]*[-1,1] coordinate square, allowing the 
 square to stay centered no matter where how the screen is physically stretched in the browser.
-  
+ 
+The comment you asked for question D is provided in the code, because I assumed when you asked for a comment 
+that you wanted it to be an actual comment in the code. Hope that is okay.

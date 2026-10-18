@@ -1,1 +1,3 @@
-https://d-man7562.github.io/cos452-dmancuso/week06/lab06.html
+https://d-man7562.github.io/cos452-dmancuso/week07/lab07.html
+The comments you asked for are provided in the code, because I assumed when you asked for a comment 
+that you wanted it to be an actual comment in the code. Hope that is fine.
