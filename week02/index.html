@@ -16,7 +16,10 @@
     if (!gl) {
       throw new Error("WebGL2 is not available on this device/browser.");
     }
-
+  function rotationZ(rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      return new Float32Array([c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1]);
+    }
     const vertexSource = `#version 300 es
     in vec2 a_position;
       in vec4 a_color;
@@ -25,7 +28,7 @@
 
       void main() {
         gl_Position = vec4(a_position, 0.0, 1.0);
-        gl_PointSize = 250.0;
+        gl_PointSize = 10.0;
         v_color = a_color; // Forward attribute to fragment shader
       }`;
      
@@ -77,6 +80,7 @@ const colors = new Float32Array([
     
 const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
     const colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+    const uMatrix = gl.getUniformLocation(program, "u_matrix");
 
     // Create & Bind VAO
     const vao = gl.createVertexArray();
@@ -109,7 +113,7 @@ const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
 
       gl.useProgram(program);
      gl.bindVertexArray(vao);
-      
+      gl.uniformMatrix4fv(uMatrix, false, rotationZ(Math.PI / 5));
       gl.clearColor(0.10, 0.12, 0.16, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       

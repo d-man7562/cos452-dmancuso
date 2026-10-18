@@ -153,8 +153,7 @@
   
 // TODO(student): replace identity with T, R, S, and their product.
       const model = identity();
-      gl.uniformMatrix4fv(uMatrix, false, multiply(model, multiply(multiply(R, T), S)));
-
+      gl.uniformMatrix4fv(uMatrix, false, multiply(model, multiply(multiply(S, R), T)));
       gl.clearColor(0.10, 0.12, 0.16, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 6);

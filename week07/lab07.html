@@ -9,7 +9,8 @@
   </style>
 </head>
 <body>
-  <canvas id="gl-canvas"></canvas>
+ 
+  <canvas id="gl-canvas" ></canvas>
   <script>
     const canvas = document.getElementById("gl-canvas");
     const gl = canvas.getContext("webgl2");
@@ -95,47 +96,119 @@
     const uMVP = gl.getUniformLocation(program, "u_mvp");
 
     // Camera: fixed at (0, 0), zoom 1 for now. Parts (b) and (c) bring it to life.
-    const cx = 0, cy = 0, zoom = 1;
+    let cx = 0, cy = 0, zoom = 1;
 
     function render() {
       const dpr = window.devicePixelRatio || 1;
-      const w = Math.round(canvas.clientWidth * dpr);
-      const h = Math.round(canvas.clientHeight * dpr);
+      const w = Math.round(canvas.clientWidth * dpr );
+      const h = Math.round(canvas.clientHeight * dpr );
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       gl.viewport(0, 0, canvas.width, canvas.height);
 
-      // TODO(student) (a): resize the window wide, then tall.
-      // The square should stay square. Which line below makes that happen?
+    // I removed the TODO comment, even though I like to keep it to look at later. helps me keep track of things from the past. only taking it out because you seemed to have a problem with it in the previous assingment.
       const aspect = canvas.width / canvas.height;
+  
       const P = orthographic(-aspect, aspect, -1, 1);
 
-      // TODO(student) (d): explain in a comment why this is -cx, -cy (minus).
-      // What would go wrong with translation(cx, cy)?
+      // I removed the TODO comment, even though I like to keep it to look at later.
+      /*
+      The translation(cx,cy) idea would create incorrect movements for the same reason you provide in the textbook.
+      The camera in WebGL2 is essentially static. We create the illusion of moving the camera by moving the entire world.
+      Applying this logic to our translations, we must move the entire world in the opposite direction of where we want the camera to move.
+      E.G. if we want to "move the camera to the right," we must move the world to the left. This is why we use -cx and -cy in our translation.   
+      */
       const V = multiply(scaling(zoom, zoom), translation(-cx, -cy));
 
-      // TODO(student) (e): give a second square its own model 
-      // matrix at a different position, sharing P and V. 
-      // Each square needs its own mvp upload and drawArrays 
-      // call.
-      const M = translation(0, 0);
+       // I removed the TODO comment, even though I like to keep it to look at later.
+   // 2 different model matrices
+      const M1 = translation(0, 0);
+      const M2 = translation(1.1, 1);
 
       gl.useProgram(program);
       gl.clearColor(0.10, 0.12, 0.16, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-
-      const mvp = multiply(multiply(P, V), M);
-      gl.uniformMatrix4fv(uMVP, false, mvp);
+//shared view!
+      const mvp1 = multiply(multiply(P, V), M1);
+      gl.uniformMatrix4fv(uMVP, false, mvp1);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+//shared view!
+      const mvp2 = multiply(multiply(P, V), M2);
+      gl.uniformMatrix4fv(uMVP, false, mvp2);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    // TODO(student) (b): make the camera pan. Change const to 
-    // let above, then add a keydown listener (or sliders) here:      
-    // arrow keys change cx and cy.
-    // Call render() after each change.
 
-    // TODO(student) (c): make the camera zoom. In the same 
-    // listener, + and - change zoom (keep it above 0), 
-    // then call render().
+// I removed the TODO comment, even though I like to keep it to look at later.
+const container = document.createElement("div");
+    container.style.position = "absolute";
+    container.style.top = "10px";
+    container.style.left = "10px";
+    container.style.background = "rgba(0,0,0,0.7)";
+    container.style.color = "white";
+    container.style.padding = "10px";
+    container.style.borderRadius = "5px";
+
+    //cx slider
+    const labelX = document.createElement("label");
+    labelX.textContent = "Camera X: ";
+    const sliderX = document.createElement("input");
+    sliderX.type = "range";
+    sliderX.min = "-3";
+    sliderX.max = "3";
+    sliderX.step = "0.05";
+    sliderX.value = cx;
+
+    sliderX.addEventListener("input", (e) => {
+      cx = parseFloat(e.target.value);
+      render();
+    });
+
+    labelX.appendChild(sliderX);
+    container.appendChild(labelX);
+    container.appendChild(document.createElement("br"));
+
+    // cy slider
+    const labelY = document.createElement("label");
+    labelY.textContent = "Camera Y: ";
+    const sliderY = document.createElement("input");
+    sliderY.type = "range";
+    sliderY.min = "-3";
+    sliderY.max = "3";
+    sliderY.step = "0.05";
+    sliderY.value = cy;
+
+    sliderY.addEventListener("input", (e) => {
+      cy = parseFloat(e.target.value);
+      render();
+    });
+    labelY.appendChild(sliderY);
+    container.appendChild(labelY);
+  container.appendChild(document.createElement("br"));
+  //zoom slider
+  // I removed the TODO comment, even though I like to keep it to look at later.
+    const zoomLabel = document.createElement("label");
+    // Add non-breaking spaces for padding because it looks pretty :)))))))))))))
+    zoomLabel.textContent = "Zoom:\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0";
+    const zoomSlider = document.createElement("input");
+    zoomSlider.type = "range";
+    zoomSlider.min = "0.001";
+    zoomSlider.max = "5";
+    zoomSlider.step = "0.05";
+    zoomSlider.value = zoom;
+
+    zoomSlider.addEventListener("input", (e) => {
+      zoom = parseFloat(e.target.value);
+      render();
+    });
+
+    zoomLabel.appendChild(zoomSlider);
+    container.appendChild(zoomLabel);
+
+
+    //inject controls into page
+    document.body.appendChild(container);
+
+   
 
     window.addEventListener("resize", render);
     render();
