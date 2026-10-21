@@ -4,7 +4,9 @@
 The square should stay square. Which line below makes that happen?
 The orthographic() call makes this happen. The proportions of the screen are first calculated by const aspect.
 Orthographic() applies this ratio to the projection matrix within a [-1,1]*[-1,1] coordinate square, allowing the 
-square to stay centered no matter where how the screen is physically stretched in the browser.
+square to stay a square no matter where and how the screen is physically stretched in the browser.
  
-The comment you asked for question D is provided in the code, because I assumed when you asked for a comment 
-that you wanted it to be an actual comment in the code. Hope that is okay.
+Question D):    The translation(cx,cy) idea would create incorrect movements for the same reason you provide in the textbook.
+      The camera in WebGL2 is essentially static. We create the illusion of moving the camera by moving the entire world.
+      Applying this logic to our translations, we must move the entire world in the opposite direction of where we want the camera to move.
+      E.G. if we want to "move the camera to the right," we must move the world to the left. This is why we use -cx and -cy in our translation.   
