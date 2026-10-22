@@ -72,15 +72,14 @@
         [-0.5,-0.5,-0.5],[0.5,-0.5,-0.5],[0.5,0.5,-0.5],[-0.5,0.5,-0.5],
         [-0.5,-0.5, 0.5],[0.5,-0.5, 0.5],[0.5,0.5, 0.5],[-0.5,0.5, 0.5],
       ];
-      // TODO(student) (d): give all six faces new colors, each one different.
-      // Change the color values here (not in the fragment shader).
+      // TODO(student) (d): changed mostly to green somehow. Next time ask: hey ai, randomize these.
       const faces = [
-        { idx:[4,5,6,7], color:[0.90,0.30,0.24] },
-        { idx:[1,0,3,2], color:[0.18,0.55,0.34] },
-        { idx:[5,1,2,6], color:[0.20,0.40,0.80] },
-        { idx:[0,4,7,3], color:[0.95,0.75,0.15] },
-        { idx:[7,6,2,3], color:[0.60,0.30,0.70] },
-        { idx:[0,1,5,4], color:[0.25,0.70,0.75] },
+        { idx:[4,5,6,7], color:[0.09,0.70,0.24] },
+        { idx:[1,0,3,2], color:[0.98,0.55,0.14] },
+        { idx:[5,1,2,6], color:[0.20,0.70,0.80] },
+        { idx:[0,4,7,3], color:[0.25,0.45,0.15] },
+        { idx:[7,6,2,3], color:[0.60,0.90,0.50] },
+        { idx:[0,1,5,4], color:[0.75,0.74,0.75] },
       ];
       const out = [];
       for (const f of faces) {
@@ -105,8 +104,12 @@
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, stride, 3 * F);
     const uMVP = gl.getUniformLocation(program, "u_mvp");
 
-    // TODO(student) (b): comment out the next line, run it, and describe in a
-    // comment exactly what goes wrong and why. Then turn it back on.
+    /* TODO(student) (b): WebGL stops checking the depth buffer when DEPTH_TEST is disabled.
+        This causes the most recently painted face of the cube to show through
+        every rotation. The last line in the faces variable is [0.25,0.70,0.75] which is cyan. 
+        As you watch the cube rotate, you can see that cyan permeates through the rest of the cube 
+        faces when it is present on the screen.
+    **/
     gl.enable(gl.DEPTH_TEST);
 
     function frame(t) {
@@ -118,9 +121,8 @@
 
       const a = t * 0.0008;
       const aspect = canvas.width / canvas.height;
-      // TODO(student) (c): change the field of view (50 degrees) and note in a
-      // comment how the cube's look changes, and why.
-      const P = perspective(50 * Math.PI / 180, aspect, 0.1, 100);
+      // TODO(student) (c): The lower the FOV, the closer the cube appears to the screen. The higher the FOV, the farther away the cube appears.
+      const P = perspective(25 * Math.PI / 180, aspect, 0.1, 100);
       const V = translation(0, 0, -3);
       const M = multiply(rotationY(a), rotationX(a * 0.6));
       const mvp = multiply(multiply(P, V), M);
@@ -129,9 +131,8 @@
       gl.uniformMatrix4fv(uMVP, false, mvp);
 
       gl.clearColor(0.10, 0.12, 0.16, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // (b): keep both bits
-      // TODO(student) (a): run this page and check that the cube renders and spins
-      // with no red errors in the console (F12).
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
+      // TODO(student) (a): runs successfully
       gl.drawArrays(gl.TRIANGLES, 0, 36);
 
       requestAnimationFrame(frame);

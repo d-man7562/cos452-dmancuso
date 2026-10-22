@@ -1,0 +1,9 @@
+// TODO(student) (a): runs successfully
+/* TODO(student) (b): WebGL stops checking the depth buffer when DEPTH_TEST is disabled.
+    This causes the most recently painted face of the cube to show through
+    every rotation. The last line in the faces variable is [0.25,0.70,0.75] which is cyan. 
+    As you watch the cube rotate, you can see that cyan permeates through the rest of the cube 
+    faces when it is present on the screen.
+**/
+ // TODO(student) (c): The lower the FOV, the closer the cube appears to the screen. The higher the FOV, the farther away the cube appears.
+ // TODO(student) (d): changed mostly to green somehow. Next time ask: hey ai, randomize these.
