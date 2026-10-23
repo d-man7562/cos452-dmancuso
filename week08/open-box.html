@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Open Box -- Back-Face Culling</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    canvas { width: 100%; height: 100%; display: block; }
+    #hud {
+      position: absolute; top: 12px; left: 12px;
+      font: 14px/1.5 monospace; color: #eee;
+      background: rgba(0,0,0,0.55); padding: 8px 12px; border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gl-canvas"></canvas>
+  <div id="hud"></div>
+  <script>
+    const canvas = document.getElementById("gl-canvas");
+    const hud = document.getElementById("hud");
+    const gl = canvas.getContext("webgl2");
+    if (!gl) {
+      throw new Error("WebGL2 is not available on this device/browser.");
+    }
+
+    const vertexSource = `#version 300 es
+      in vec3 a_position;
+      in vec3 a_color;
+      uniform mat4 u_mvp;
+      out vec3 v_color;
+      void main() {
+        gl_Position = u_mvp * vec4(a_position, 1.0);
+        v_color = a_color;
+      }`;
+
+    const fragmentSource = `#version 300 es
+      precision mediump float;
+      in vec3 v_color;
+      out vec4 outColor;
+      void main() { outColor = vec4(v_color, 1.0); }`;
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        throw new Error("Shader failed to compile: " + gl.getShaderInfoLog(shader));
+      }
+      return shader;
+    }
+    function createProgram(gl, vsSource, fsSource) {
+      const program = gl.createProgram();
+      gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+      gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error("Program failed to link: " + gl.getProgramInfoLog(program));
+      }
+      return program;
+    }
+
+    // ---- Column-major mat4 helpers ----
+    function translation(tx, ty, tz) { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, tx,ty,tz,1]); }
+    function rotationX(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]); }
+    function rotationY(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]); }
+    function perspective(fovy, aspect, near, far) {
+      const f = 1/Math.tan(fovy/2), nf = 1/(near-far);
+      return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+    }
+    function multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let c=0;c<4;c++) for (let r=0;r<4;r++){ let s=0; for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k]; out[c*4+r]=s; }
+      return out;
+    }
+
+    // A cube with its TOP face (+y) removed, so it's an open box.
+    // Every face is wound counter-clockwise when seen from OUTSIDE,
+    // so its front side points outward. Looking into the opening, the
+    // far walls are seen from behind (clockwise) -> back faces -> culled.
+    function cubeCorners(s) {
+      return [
+        [-s,-s,-s],[s,-s,-s],[s,s,-s],[-s,s,-s],
+        [-s,-s, s],[s,-s, s],[s,s, s],[-s,s, s],
+      ];
+    }
+    const outerFaces = [
+      { idx:[4,5,6,7], color:[0.09,0.70,0.24] }, // front  (+z)
+      { idx:[1,0,3,2], color:[0.98,0.55,0.14] }, // back   (-z)
+      { idx:[5,1,2,6], color:[0.20,0.70,0.80] }, // right  (+x)
+      { idx:[0,4,7,3], color:[0.85,0.30,0.55] }, // left   (-x)
+      // { idx:[7,6,2,3], color:[...] },          // top    (+y) -- REMOVED
+      { idx:[0,1,5,4], color:[0.75,0.74,0.75] }, // bottom (-y)
+    ];
+
+    function pushFaces(out, p, faces, reverse, shade) {
+      for (const f of faces) {
+        let [a, b, c, d] = f.idx;
+        if (reverse) [a, b, c, d] = [d, c, b, a]; // flip winding -> front side points inward
+        const col = f.color.map(v => v * shade);
+        for (const i of [a, b, c, a, c, d]) out.push(...p[i], ...col);
+      }
+    }
+
+    // Outer shell only (single-layer walls).
+    const outerData = [];
+    pushFaces(outerData, cubeCorners(0.5), outerFaces, false, 1.0);
+
+    // Inner shell: same faces, slightly smaller, winding reversed and colors
+    // darkened. This gives the walls "thickness" so the inside survives culling.
+    const innerData = [];
+    pushFaces(innerData, cubeCorners(0.48), outerFaces, true, 0.45);
+
+    const program = createProgram(gl, vertexSource, fragmentSource);
+
+    const data = new Float32Array([...outerData, ...innerData]);
+    const outerCount = outerData.length / 6;
+    const innerCount = innerData.length / 6;
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const F = Float32Array.BYTES_PER_ELEMENT, stride = 6 * F;
+    const aPosition = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, stride, 0);
+    const aColor = gl.getAttribLocation(program, "a_color");
+    gl.enableVertexAttribArray(aColor);
+    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, stride, 3 * F);
+    const uMVP = gl.getUniformLocation(program, "u_mvp");
+
+    // ---- Toggles ----
+    let culling = true;     // C
+    let innerWalls = false; // I
+    let paused = false;     // Space
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "c" || e.key === "C") culling = !culling;
+      if (e.key === "i" || e.key === "I") innerWalls = !innerWalls;
+      if (e.key === " ") paused = !paused;
+      updateHud();
+    });
+    function updateHud() {
+      hud.innerHTML =
+        `[C] CULL_FACE:   <b>${culling ? "ON" : "OFF"}</b><br>` +
+        `[I] inner walls: <b>${innerWalls ? "ON" : "OFF"}</b><br>` +
+        `[Space] pause rotation<br>` +
+        (culling && !innerWalls
+          ? "&rarr; far walls seen from inside are back faces: culled (see-through)"
+          : culling && innerWalls
+          ? "&rarr; inner shell faces inward: inside visible (darker)"
+          : "&rarr; no culling: inside visible (same colors as outside)");
+    }
+    updateHud();
+
+    gl.enable(gl.DEPTH_TEST);
+
+    let angle = 0, last = 0;
+    function frame(t) {
+      const dt = t - last; last = t;
+      if (!paused) angle += dt * 0.0006;
+
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.round(canvas.clientWidth * dpr);
+      const h = Math.round(canvas.clientHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+
+      if (culling) gl.enable(gl.CULL_FACE); else gl.disable(gl.CULL_FACE);
+      gl.cullFace(gl.BACK);
+      gl.frontFace(gl.CCW);
+
+      const aspect = canvas.width / canvas.height;
+      const P = perspective(35 * Math.PI / 180, aspect, 0.1, 100);
+      const V = translation(0, 0, -3);
+      // Tilt the open top toward the camera, then spin around Y.
+      const M = multiply(rotationX(0.6), rotationY(angle));
+      const mvp = multiply(multiply(P, V), M);
+
+      gl.useProgram(program);
+      gl.uniformMatrix4fv(uMVP, false, mvp);
+
+      gl.clearColor(0.10, 0.12, 0.16, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, outerCount);
+      if (innerWalls) gl.drawArrays(gl.TRIANGLES, outerCount, innerCount);
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

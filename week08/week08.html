@@ -111,7 +111,7 @@
         faces when it is present on the screen.
     **/
     gl.enable(gl.DEPTH_TEST);
-
+    // gl.enable(gl.CULL_FACE);
     function frame(t) {
       const dpr = window.devicePixelRatio || 1;
       const w = Math.round(canvas.clientWidth * dpr);
