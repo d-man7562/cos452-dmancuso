@@ -1,0 +1,12 @@
+ //TODO(student) (a): replace black box with image of verity in Minecraft
+ // TODO(student) (b): While the origin point of a HTML image is the top-left corner,
+      //  the origin point of a WebGL texture is the bottom-left corner. This means that
+      //  when you map the image onto a texture, it appears upside down unless you flip it vertically. 
+      // The other fix would be to adjust the UV coordinates in the vertex data. UV coordinates are used to map
+      // textures onto geometry. U stands for the horizontal axis and V stands for the vertical axis. 
+      //  Both U and V use a normalized scale between 0-1. By flipping the V coordinate 
+      //  using 1-v instead of v, you can flip the texture mapping starting point and the 
+      // mapping will draw the image correctly. This UV coordinate solution is more efficient than 
+      // using the pixelStorei() function because UV mapping is handled with a single 1-v operation
+      // while pixelStorei() requires moving data about the image in memory. 
+      
