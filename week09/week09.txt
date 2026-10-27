@@ -1,3 +1,4 @@
+https://d-man7562.github.io/cos452-dmancuso/week09/index.html 
  //TODO(student) (a): replace black box with image of verity in Minecraft
  // TODO(student) (b): While the origin point of a HTML image is the top-left corner,
       //  the origin point of a WebGL texture is the bottom-left corner. This means that
@@ -9,4 +10,12 @@
       // mapping will draw the image correctly. This UV coordinate solution is more efficient than 
       // using the pixelStorei() function because UV mapping is handled with a single 1-v operation
       // while pixelStorei() requires moving data about the image in memory. 
-      
+//TODO(student) (c): REPEAT lets the texture repeat. If a UV coordinate goes beyond the 0-1 range, the texture will repeat.
+      //  If you are making a game and want a brick wall for example, use REPEAT to allow the texture to repeat past the 0-1 UV range. 
+      // CLAMP_TO_EDGE uses the last pixel of the image (at the edge) to fill the remaining UV coordinates. Visually, the edges look a lot 
+      // cleaner when I used CLAMP_TO_EDGE.
+      // NEAREST and LINEAR both involve reading the texture data to determine the color of a pixel.
+      // NEAREST uses the nearest texel (texture pixel) relative to the UV coordinate to determine the color of a pixel.
+      // LINEAR uses a weighted average of the four nearest texels to determine the color of a pixel.
+      // The result of both options is this: NEAREST makes the image look more pixelated, with rougher edges.
+        // TODO(student) (d): The image loads fine.
