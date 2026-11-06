@@ -9,6 +9,14 @@
   </style>
 </head>
 <body>
+
+    <div id="ui-container" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 15px; z-index: 10;">
+    <div><label>Sun:</label> <input type="file" id="upload-sun"></div>
+    <div><label>Earth:</label> <input type="file" id="upload-earth"></div>
+    <div><label>Mars:</label> <input type="file" id="upload-mars"></div>
+  </div>
+
+
   <canvas id="gl-canvas"></canvas>
   <script>
     const canvas = document.getElementById("gl-canvas");
@@ -16,22 +24,23 @@
     if (!gl) {
       throw new Error("WebGL2 is not available on this device/browser.");
     }
-
+// 1. SHADERS UPDATED FOR TEXTURES (Removed colors, added UV coordinates)
     const vertexSource = `#version 300 es
       in vec3 a_position;
-      in vec3 a_color;
+      in vec2 a_texcoord;
       uniform mat4 u_mvp;
-      out vec3 v_color;
+      out vec2 v_texcoord;
       void main() {
         gl_Position = u_mvp * vec4(a_position, 1.0);
-        v_color = a_color;
+        v_texcoord = a_texcoord;
       }`;
 
     const fragmentSource = `#version 300 es
       precision mediump float;
-      in vec3 v_color;
+      in vec2 v_texcoord;
       out vec4 outColor;
-      void main() { outColor = vec4(v_color, 1.0); }`;
+      void main() { outColor = texture(u_texture, v_texcoord); 
+      }`;
 
     function createShader(gl, type, source) {
       const shader = gl.createShader(type);
@@ -66,13 +75,15 @@
       for (let c=0;c<4;c++) for (let r=0;r<4;r++){ let s=0; for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k]; out[c*4+r]=s; }
       return out;
     }
-
+function scale(sx, sy, sz) { 
+      return new Float32Array([sx,0,0,0, 0,sy,0,0, 0,0,sz,0, 0,0,0,1]); 
+    }
     function makeCube() {
       const p = [
         [-0.5,-0.5,-0.5],[0.5,-0.5,-0.5],[0.5,0.5,-0.5],[-0.5,0.5,-0.5],
         [-0.5,-0.5, 0.5],[0.5,-0.5, 0.5],[0.5,0.5, 0.5],[-0.5,0.5, 0.5],
       ];
-      // TODO(student) (d): changed mostly to green somehow. Next time ask: hey ai, randomize these.
+
       const faces = [
         { idx:[4,5,6,7], color:[0.09,0.70,0.24] },
         { idx:[1,0,3,2], color:[0.98,0.55,0.14] },
@@ -90,62 +101,66 @@
     }
 
 
-function makeSphere(radius = 0.5, latBands = 30, lonBands = 30) {
-  const out = [];
-  
-  for (let latNumber = 0; latNumber < latBands; latNumber++) {
-    for (let longNumber = 0; longNumber < lonBands; longNumber++) {
-      
-      let lat0 = latNumber * Math.PI / latBands;
-      let lat1 = (latNumber + 1) * Math.PI / latBands;
-      let lon0 = longNumber * 2 * Math.PI / lonBands;
-      let lon1 = (longNumber + 1) * 2 * Math.PI / lonBands;
+//  GEOMETRY UPDATED FOR UV COORDINATES
+    function makeSphere(radius = 0.5, latBands = 30, lonBands = 30) {
+      const out = [];
+      for (let latNumber = 0; latNumber < latBands; latNumber++) {
+        for (let longNumber = 0; longNumber < lonBands; longNumber++) {
+          let lat0 = latNumber * Math.PI / latBands;
+          let lat1 = (latNumber + 1) * Math.PI / latBands;
+          let lon0 = longNumber * 2 * Math.PI / lonBands;
+          let lon1 = (longNumber + 1) * 2 * Math.PI / lonBands;
 
-      let getPoint = (lat, lon) => {
-        let x = Math.sin(lat) * Math.cos(lon) * radius;
-        let y = Math.cos(lat) * radius;
-        let z = Math.sin(lat) * Math.sin(lon) * radius;
-        return [x, y, z];
-      };
+          let getPoint = (lat, lon) => [
+            Math.sin(lat) * Math.cos(lon) * radius,
+            Math.cos(lat) * radius,
+            Math.sin(lat) * Math.sin(lon) * radius
+          ];
 
-      let p1 = getPoint(lat0, lon0);
-      let p2 = getPoint(lat1, lon0);
-      let p3 = getPoint(lat1, lon1);
-      let p4 = getPoint(lat0, lon1);
+          let p1 = getPoint(lat0, lon0); let p2 = getPoint(lat1, lon0);
+          let p3 = getPoint(lat1, lon1); let p4 = getPoint(lat0, lon1);
 
-      // Maps position to color for a rainbow gradient effect
-      let c1 = [p1[0]+0.5, p1[1]+0.5, p1[2]+0.5];
-      let c2 = [p2[0]+0.5, p2[1]+0.5, p2[2]+0.5];
-      let c3 = [p3[0]+0.5, p3[1]+0.5, p3[2]+0.5];
-      let c4 = [p4[0]+0.5, p4[1]+0.5, p4[2]+0.5];
+          // Calculate Texture UVs
+          let u0 = 1.0 - (longNumber / lonBands);
+          let u1 = 1.0 - ((longNumber + 1) / lonBands);
+          let v0 = 1.0 - (latNumber / latBands);
+          let v1 = 1.0 - ((latNumber + 1) / latBands);
 
-      // Quad divided into two triangles
-      out.push(...p1, ...c1); out.push(...p2, ...c2); out.push(...p4, ...c4);
-      out.push(...p2, ...c2); out.push(...p3, ...c3); out.push(...p4, ...c4);
+          let t1 = [u0, v0]; let t2 = [u0, v1];
+          let t3 = [u1, v1]; let t4 = [u1, v0];
+
+          // Push position + UV instead of position + color
+          out.push(...p1, ...t1); out.push(...p2, ...t2); out.push(...p4, ...t4);
+          out.push(...p2, ...t2); out.push(...p3, ...t3); out.push(...p4, ...t4);
+        }
+      }
+      return new Float32Array(out);
     }
-  }
-  return new Float32Array(out);
-}
 
     const program = createProgram(gl, vertexSource, fragmentSource);
 
     const data = makeSphere();
-    const numVertices = data.length / 6;
+    const numVertices = data.length / 5;
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    const F = Float32Array.BYTES_PER_ELEMENT, stride = 6 * F;
+    
+    const F = Float32Array.BYTES_PER_ELEMENT;
+    const stride = 5 * F;
+    
     const aPosition = gl.getAttribLocation(program, "a_position");
     gl.enableVertexAttribArray(aPosition);
     gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, stride, 0);
-    const aColor = gl.getAttribLocation(program, "a_color");
-    gl.enableVertexAttribArray(aColor);
-    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, stride, 3 * F);
-    const uMVP = gl.getUniformLocation(program, "u_mvp");
 
+    const aTexCoord = gl.getAttribLocation(program, "a_texcoord");
+    gl.enableVertexAttribArray(aTexCoord);
+    gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, stride, 3 * F);
+    
+    const uMVP = gl.getUniformLocation(program, "u_mvp");
+    const uTexture = gl.getUniformLocation(program, "u_texture");
 
     gl.enable(gl.DEPTH_TEST);
-    // gl.enable(gl.CULL_FACE);
+   
 
 let fov = 25; // Initial Field of View in degrees
 
@@ -196,11 +211,48 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('mouseup', () => isDragging = false);
 canvas.addEventListener('mouseleave', () => isDragging = false);
 
+
+function createSolidTexture(r, g, b) {
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      // Fills with a solid color before an image is uploaded
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([r, g, b, 255]));
+      return tex;
+    }
+
+    function setupFileUpload(inputId, texture) {
+      document.getElementById(inputId).addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            gl.generateMipmap(gl.TEXTURE_2D);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const sunTex = createSolidTexture(255, 200, 0); // Yellow placeholder
+    const earthTex = createSolidTexture(50, 100, 255); // Blue placeholder
+    const marsTex = createSolidTexture(200, 50, 50); // Red placeholder
+
+    setupFileUpload('upload-sun', sunTex);
+    setupFileUpload('upload-earth', earthTex);
+    setupFileUpload('upload-mars', marsTex);
+
 const solarSystem = [
-  { name: "Sun",   radius: 0.8, distance: 0,   orbitSpeed: 0,      rotSpeed: 0.0002 },
-  { name: "Earth", radius: 0.3, distance: 2.0, orbitSpeed: 0.001,  rotSpeed: 0.002 },
-  { name: "Mars",  radius: 0.2, distance: 3.5, orbitSpeed: 0.0006, rotSpeed: 0.0018 }
-];
+      { name: "Sun",   radius: 1.0, distance: 0,   orbitSpeed: 0,      rotSpeed: 0.0002, texture: sunTex },
+      { name: "Earth", radius: 0.4, distance: 2.5, orbitSpeed: 0.001,  rotSpeed: 0.002,  texture: earthTex },
+      { name: "Mars",  radius: 0.3, distance: 4.0, orbitSpeed: 0.0006, rotSpeed: 0.0018, texture: marsTex }
+    ];
+
 
     function frame(t) {
       const dpr = window.devicePixelRatio || 1;
@@ -217,18 +269,33 @@ const solarSystem = [
     const cameraZTranslation = translation(0, 0, -3);
     const cameraRotation = multiply(rotationX(cameraAngleY), rotationY(cameraAngleX));
     const V = multiply(cameraZTranslation, cameraRotation);
+    const PV = multiply(P, V);
 
+    gl.useProgram(program);
+      gl.clearColor(0.05, 0.05, 0.08, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+     for (const body of solarSystem) {
+        // Transformations
+        const S = scale(body.radius, body.radius, body.radius);
+        const spin = rotationY(t * body.rotSpeed);
+        const trans = translation(body.distance, 0, 0);
+        const orbit = rotationY(t * body.orbitSpeed);
 
-      const M = multiply(rotationY(a), rotationX(a * 0.6));
-      const mvp = multiply(multiply(P, V), M);
+        // Combine into Model matrix (Read right-to-left: Scale -> Spin -> Translate -> Orbit)
+        let M = multiply(spin, S);
+        M = multiply(trans, M);
+        M = multiply(orbit, M);
 
-      gl.useProgram(program);
-      gl.uniformMatrix4fv(uMVP, false, mvp);
+        const mvp = multiply(PV, M);
+        gl.uniformMatrix4fv(uMVP, false, mvp);
 
-      gl.clearColor(0.10, 0.12, 0.16, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
-      // TODO(student) (a): runs successfully
-      gl.drawArrays(gl.TRIANGLES, 0, numVertices);
+        // Bind the specific texture for this planet
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, body.texture);
+        gl.uniform1i(uTexture, 0);
+
+        gl.drawArrays(gl.TRIANGLES, 0, numVertices);
+      }
 
       requestAnimationFrame(frame);
     }
