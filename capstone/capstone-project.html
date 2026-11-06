@@ -164,9 +164,43 @@ canvas.addEventListener("wheel", (e) => {
   fov = Math.max(5, Math.min(150, fov));
 }, { passive: false });
 
-canvas.addEventListener('click', (e) =>{
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    let cameraAngleX = 0; // Left/Right orbit
+    let cameraAngleY = 0; // Up/Down orbit
 
+// Orbit functionality
+canvas.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
 });
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  
+  const deltaX = e.clientX - lastMouseX;
+  const deltaY = e.clientY - lastMouseY;
+  
+  cameraAngleX += deltaX * 0.01; // Sensitivity
+  cameraAngleY += deltaY * 0.01;
+  
+  // Clamp vertical rotation so the camera doesn't flip upside down
+  cameraAngleY = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraAngleY));
+  
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+});
+
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('mouseleave', () => isDragging = false);
+
+const solarSystem = [
+  { name: "Sun",   radius: 0.8, distance: 0,   orbitSpeed: 0,      rotSpeed: 0.0002 },
+  { name: "Earth", radius: 0.3, distance: 2.0, orbitSpeed: 0.001,  rotSpeed: 0.002 },
+  { name: "Mars",  radius: 0.2, distance: 3.5, orbitSpeed: 0.0006, rotSpeed: 0.0018 }
+];
 
     function frame(t) {
       const dpr = window.devicePixelRatio || 1;
@@ -175,11 +209,16 @@ canvas.addEventListener('click', (e) =>{
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       gl.viewport(0, 0, canvas.width, canvas.height);
 
-      const a = 1.0 * t * 0.0008;
+      const a = 1.0// * t * 0.0008;
       const aspect = canvas.width / canvas.height;
      
       const P = perspective(fov * Math.PI / 180, aspect, 0.1, 100);
-      const V = translation(0, 0, -3);
+
+    const cameraZTranslation = translation(0, 0, -3);
+    const cameraRotation = multiply(rotationX(cameraAngleY), rotationY(cameraAngleX));
+    const V = multiply(cameraZTranslation, cameraRotation);
+
+
       const M = multiply(rotationY(a), rotationX(a * 0.6));
       const mvp = multiply(multiply(P, V), M);
 
