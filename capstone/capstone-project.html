@@ -221,6 +221,27 @@ function createSolidTexture(r, g, b) {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([r, g, b, 255]));
       return tex;
     }
+    function uploadImageToTexture(texture, img) {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+
+    // Starts as a solid colour, then swaps in the image once it finishes loading
+    function loadTexture(url, r, g, b) {
+    const tex = createSolidTexture(r, g, b);
+    const img = new Image();
+    img.onload = () => uploadImageToTexture(tex, img);
+    img.onerror = () => console.error("Could not load " + url);
+    img.src = url;
+    return tex;
+    }
 
     function setupFileUpload(inputId, texture) {
       document.getElementById(inputId).addEventListener('change', (e) => {
@@ -230,16 +251,7 @@ function createSolidTexture(r, g, b) {
         reader.onload = (event) => {
           const img = new Image();
           img.onload = () => {
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            // Images load top-row-first; flip so the texture isn't upside down on the sphere
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-            gl.generateMipmap(gl.TEXTURE_2D);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            uploadImageToTexture(texture, img);
           };
           img.src = event.target.result;
         };
@@ -247,9 +259,9 @@ function createSolidTexture(r, g, b) {
       });
     }
 
-    const sunTex = createSolidTexture(255, 200, 0); // Yellow placeholder
-    const earthTex = createSolidTexture(50, 100, 255); // Blue placeholder
-    const marsTex = createSolidTexture(200, 50, 50); // Red placeholder
+    const sunTex   = loadTexture("sun.jfif",   255, 200, 0);
+    const earthTex = loadTexture("earth.jpg", 50, 100, 255);
+    const marsTex  = loadTexture("mercury.jfif",  200, 50, 50);
 
     setupFileUpload('upload-sun', sunTex);
     setupFileUpload('upload-earth', earthTex);
