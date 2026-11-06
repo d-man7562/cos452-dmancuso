@@ -14,6 +14,7 @@
     <div><label>Sun:</label> <input type="file" id="upload-sun"></div>
     <div><label>Earth:</label> <input type="file" id="upload-earth"></div>
     <div><label>Mars:</label> <input type="file" id="upload-mars"></div>
+    <div><label>orbit multiplier:</label> <input type="range" id="orbit-multiplier" min="0.1" max="5" step="0.1" value="1"></div>
   </div>
 
 
@@ -37,6 +38,7 @@
 
     const fragmentSource = `#version 300 es
       precision mediump float;
+      uniform sampler2D u_texture;
       in vec2 v_texcoord;
       out vec4 outColor;
       void main() { outColor = texture(u_texture, v_texcoord); 
@@ -101,7 +103,7 @@ function scale(sx, sy, sz) {
     }
 
 
-//  GEOMETRY UPDATED FOR UV COORDINATES
+
     function makeSphere(radius = 0.5, latBands = 30, lonBands = 30) {
       const out = [];
       for (let latNumber = 0; latNumber < latBands; latNumber++) {
@@ -162,7 +164,7 @@ function scale(sx, sy, sz) {
     gl.enable(gl.DEPTH_TEST);
    
 
-let fov = 25; // Initial Field of View in degrees
+let fov = 45; // Initial Field of View in degrees
 
 canvas.addEventListener("wheel", (e) => {
   // Prevent the page from scrolling when zooming on the canvas
@@ -229,9 +231,15 @@ function createSolidTexture(r, g, b) {
           const img = new Image();
           img.onload = () => {
             gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Images load top-row-first; flip so the texture isn't upside down on the sphere
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
             gl.generateMipmap(gl.TEXTURE_2D);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
           };
           img.src = event.target.result;
         };
@@ -261,12 +269,12 @@ const solarSystem = [
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       gl.viewport(0, 0, canvas.width, canvas.height);
 
-      const a = 1.0// * t * 0.0008;
+      const a = 1.0;
       const aspect = canvas.width / canvas.height;
      
       const P = perspective(fov * Math.PI / 180, aspect, 0.1, 100);
 
-    const cameraZTranslation = translation(0, 0, -3);
+    const cameraZTranslation = translation(0, 0, -15);
     const cameraRotation = multiply(rotationX(cameraAngleY), rotationY(cameraAngleX));
     const V = multiply(cameraZTranslation, cameraRotation);
     const PV = multiply(P, V);
@@ -279,7 +287,7 @@ const solarSystem = [
         const S = scale(body.radius, body.radius, body.radius);
         const spin = rotationY(t * body.rotSpeed);
         const trans = translation(body.distance, 0, 0);
-        const orbit = rotationY(t * body.orbitSpeed);
+        const orbit = rotationY(t * body.orbitSpeed * document.getElementById('orbit-multiplier').value); // Adjust orbit speed based on slider value
 
         // Combine into Model matrix (Read right-to-left: Scale -> Spin -> Translate -> Orbit)
         let M = multiply(spin, S);
