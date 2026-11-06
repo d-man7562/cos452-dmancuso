@@ -11,10 +11,9 @@
 <body>
 
     <div id="ui-container" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 15px; z-index: 10;">
-    <div><label>Sun:</label> <input type="file" id="upload-sun"></div>
-    <div><label>Earth:</label> <input type="file" id="upload-earth"></div>
-    <div><label>Mars:</label> <input type="file" id="upload-mars"></div>
-    <div><label>orbit multiplier:</label> <input type="range" id="orbit-multiplier" min="0.1" max="5" step="0.1" value="1"></div>
+    <div><label>orbit speed multiplier:</label> <input type="range" id="orbit-multiplier" min="0.001" max="1" step="0.01" value=".1"></div>
+    
+
   </div>
 
 
@@ -25,7 +24,7 @@
     if (!gl) {
       throw new Error("WebGL2 is not available on this device/browser.");
     }
-// 1. SHADERS UPDATED FOR TEXTURES (Removed colors, added UV coordinates)
+// SHADERS UPDATED FOR TEXTURES (Removed colors, added UV coordinates)
     const vertexSource = `#version 300 es
       in vec3 a_position;
       in vec2 a_texcoord;
@@ -243,34 +242,29 @@ function createSolidTexture(r, g, b) {
     return tex;
     }
 
-    function setupFileUpload(inputId, texture) {
-      document.getElementById(inputId).addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            uploadImageToTexture(texture, img);
-          };
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
 
-    const sunTex   = loadTexture("sun.jfif",   255, 200, 0);
+    const sunTex   = loadTexture("sun.jpg",   255, 200, 0);
+    const mercuryTex = loadTexture("mercury.jfif", 200, 200, 200);
+    const venusTex = loadTexture("venus.jpg", 0,0,0);
     const earthTex = loadTexture("earth.jpg", 50, 100, 255);
     const marsTex  = loadTexture("mercury.jfif",  200, 50, 50);
-
-    setupFileUpload('upload-sun', sunTex);
-    setupFileUpload('upload-earth', earthTex);
-    setupFileUpload('upload-mars', marsTex);
+    const jupiterTex  = loadTexture("jupiter.jpg",  200, 50, 50);
+    const saturnTex = loadTexture("saturn.jpg", 0,0,0);
+    const uranusTex = loadTexture("uranus.jpg", 0,0,0);
+    const neptuneTex = loadTexture("neptune.jpg",0,0,0);
 
 const solarSystem = [
-      { name: "Sun",   radius: 1.0, distance: 0,   orbitSpeed: 0,      rotSpeed: 0.0002, texture: sunTex },
-      { name: "Earth", radius: 0.4, distance: 2.5, orbitSpeed: 0.001,  rotSpeed: 0.002,  texture: earthTex },
-      { name: "Mars",  radius: 0.3, distance: 4.0, orbitSpeed: 0.0006, rotSpeed: 0.0018, texture: marsTex }
+
+  { name: "Sun",     radius: 1.0,  distance: 0.0,  orbitSpeed: 0.0,      rotSpeed: 0.002,  texture: sunTex },
+  { name: "Mercury", radius: 0.2,  distance: 2.0,  orbitSpeed: 0.04,     rotSpeed: 0.005,  texture: mercuryTex },
+  { name: "Venus",   radius: 0.3,  distance: 3.2,  orbitSpeed: 0.015,    rotSpeed: -0.002, texture: venusTex },
+  { name: "Earth",   radius: 0.35, distance: 4.5,  orbitSpeed: 0.01,     rotSpeed: 0.02,   texture: earthTex },
+  { name: "Mars",    radius: 0.25, distance: 5.8,  orbitSpeed: 0.008,    rotSpeed: 0.02,   texture: marsTex },
+  { name: "Jupiter", radius: 0.7,  distance: 8.5,  orbitSpeed: 0.002,    rotSpeed: 0.04,   texture: jupiterTex },
+  { name: "Saturn",  radius: 0.6,  distance: 11.5, orbitSpeed: 0.0009,   rotSpeed: 0.038,  texture: saturnTex },
+  { name: "Uranus",  radius: 0.5,  distance: 14.5, orbitSpeed: 0.0004,   rotSpeed: -0.03,  texture: uranusTex },
+  { name: "Neptune", radius: 0.45, distance: 17.0, orbitSpeed: 0.0001,   rotSpeed: 0.03,   texture: neptuneTex }
+      
     ];
 
 
