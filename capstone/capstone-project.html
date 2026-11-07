@@ -12,7 +12,8 @@
 
     <div id="ui-container" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 15px; z-index: 10;">
     <div><label>orbit speed multiplier:</label> <input type="range" id="orbit-multiplier" min="0.001" max="1" step="0.01" value=".1"></div>
-    
+    <div><label>rotation speed multiplier:</label> <input type="range" id="rotation-multiplier" min="0.001" max="1" step="0.01" value=".1"></div>
+
 
   </div>
 
@@ -29,19 +30,36 @@
       in vec3 a_position;
       in vec2 a_texcoord;
       uniform mat4 u_mvp;
+      uniform mat4 u_model;
       out vec2 v_texcoord;
+      out vec3 v_normal;
+      out vec3 v_worldPos;
       void main() {
         gl_Position = u_mvp * vec4(a_position, 1.0);
         v_texcoord = a_texcoord;
+          // Same idea as week 10: rotate the normal with the model matrix
+        v_normal    = mat3(u_model) * normalize(a_position);
+        v_worldPos  = (u_model * vec4(a_position, 1.0)).xyz;
       }`;
 
     const fragmentSource = `#version 300 es
       precision mediump float;
       uniform sampler2D u_texture;
+      uniform vec3  u_lightPos;   // the Sun's position in world space
+      uniform float u_ambient;    // 0..1 minimum brightness on the night side
       in vec2 v_texcoord;
+    in vec3 v_normal;
+      in vec3 v_worldPos;
       out vec4 outColor;
-      void main() { outColor = texture(u_texture, v_texcoord); 
+      void main() { 
+        vec3 N = normalize(v_normal);
+        vec3 L = normalize(u_lightPos - v_worldPos);   // direction TO the sun, per fragment
+        float diff  = max(dot(N, L), 0.0);
+        float light = u_ambient + (1.0 - u_ambient) * diff;
+        vec4 tex = texture(u_texture, v_texcoord);
+        outColor = vec4(tex.rgb * light, tex.a);
       }`;
+
 
     function createShader(gl, type, source) {
       const shader = gl.createShader(type);
@@ -158,6 +176,10 @@ function scale(sx, sy, sz) {
     gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, stride, 3 * F);
     
     const uMVP = gl.getUniformLocation(program, "u_mvp");
+    const uModel    = gl.getUniformLocation(program, "u_model");
+    const uLightPos = gl.getUniformLocation(program, "u_lightPos");
+    const uAmbient  = gl.getUniformLocation(program, "u_ambient");
+
     const uTexture = gl.getUniformLocation(program, "u_texture");
 
     gl.enable(gl.DEPTH_TEST);
@@ -242,19 +264,20 @@ function createSolidTexture(r, g, b) {
     return tex;
     }
 
+    const starsTex = loadTexture("stars.jfif", 0, 0, 0);
 
     const sunTex   = loadTexture("sun.jpg",   255, 200, 0);
     const mercuryTex = loadTexture("mercury.jfif", 200, 200, 200);
     const venusTex = loadTexture("venus.jpg", 0,0,0);
     const earthTex = loadTexture("earth.jpg", 50, 100, 255);
-    const marsTex  = loadTexture("mercury.jfif",  200, 50, 50);
+    const marsTex  = loadTexture("mars.jpg",  200, 50, 50);
     const jupiterTex  = loadTexture("jupiter.jpg",  200, 50, 50);
     const saturnTex = loadTexture("saturn.jpg", 0,0,0);
     const uranusTex = loadTexture("uranus.jpg", 0,0,0);
     const neptuneTex = loadTexture("neptune.jpg",0,0,0);
 
 const solarSystem = [
-
+  { name: "Skybox", radius: 100.0, distance: 0, orbitSpeed: 0, rotSpeed: 0, texture: starsTex },
   { name: "Sun",     radius: 1.0,  distance: 0.0,  orbitSpeed: 0.0,      rotSpeed: 0.002,  texture: sunTex },
   { name: "Mercury", radius: 0.2,  distance: 2.0,  orbitSpeed: 0.04,     rotSpeed: 0.005,  texture: mercuryTex },
   { name: "Venus",   radius: 0.3,  distance: 3.2,  orbitSpeed: 0.015,    rotSpeed: -0.002, texture: venusTex },
@@ -286,12 +309,13 @@ const solarSystem = [
     const PV = multiply(P, V);
 
     gl.useProgram(program);
+    gl.uniform3f(uLightPos, 0, 0, 0);
       gl.clearColor(0.05, 0.05, 0.08, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
      for (const body of solarSystem) {
         // Transformations
         const S = scale(body.radius, body.radius, body.radius);
-        const spin = rotationY(t * body.rotSpeed);
+        const spin = rotationY(t * body.rotSpeed* document.getElementById('rotation-multiplier').value);
         const trans = translation(body.distance, 0, 0);
         const orbit = rotationY(t * body.orbitSpeed * document.getElementById('orbit-multiplier').value); // Adjust orbit speed based on slider value
 
@@ -302,6 +326,10 @@ const solarSystem = [
 
         const mvp = multiply(PV, M);
         gl.uniformMatrix4fv(uMVP, false, mvp);
+
+        gl.uniformMatrix4fv(uModel, false, M);
+        gl.uniform1f(uAmbient, body.name === "Sun" ? 1.0 : 0.15);
+
 
         // Bind the specific texture for this planet
         gl.activeTexture(gl.TEXTURE0);
