@@ -13,6 +13,12 @@
     <div id="ui-container" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 15px; z-index: 10;">
     <div><label>orbit speed multiplier:</label> <input type="range" id="orbit-multiplier" min="0.001" max="1" step="0.01" value=".1"></div>
     <div><label>rotation speed multiplier:</label> <input type="range" id="rotation-multiplier" min="0.001" max="1" step="0.01" value=".1"></div>
+    <div><label>orbit:</label>
+      <select id="follow-target">
+        <option>Sun</option><option>Mercury</option><option>Venus</option><option>Earth</option><option>Mars</option>
+        <option>Jupiter</option><option>Saturn</option><option>Uranus</option><option>Neptune</option>
+      </select>
+    </div>
 
 
   </div>
@@ -303,9 +309,24 @@ const solarSystem = [
      
       const P = perspective(fov * Math.PI / 180, aspect, 0.1, 100);
 
-    const cameraZTranslation = translation(0, 0, -15);
+    const orbitMult = document.getElementById('orbit-multiplier').value;
+    const rotMult = document.getElementById('rotation-multiplier').value;
+
+    // Find the followed body's world position using the same orbit math as the model matrices below.
+    // rotationY(a) applied to (distance, 0, 0) gives (distance*cos(a), 0, -distance*sin(a)).
+    // This only reads the planet's position; it never changes it.
+    const follow_planet = document.getElementById('follow-target').value;
+    const target = solarSystem.find(b => b.name === follow_planet);
+    const targetAngle = t * target.orbitSpeed * orbitMult;
+    const tx = target.distance * Math.cos(targetAngle);
+    const tz = -target.distance * Math.sin(targetAngle);
+    // Sun keeps the original wide view; planets get a close-up scaled to their size
+    const cameraDistance = target.name === "Sun" ? 15 : target.radius * 8;
+
+    // View = back off from target * mouse rotation * move target to the origin
+    const cameraZTranslation = translation(0, 0, -cameraDistance);
     const cameraRotation = multiply(rotationX(cameraAngleY), rotationY(cameraAngleX));
-    const V = multiply(cameraZTranslation, cameraRotation);
+    const V = multiply(cameraZTranslation, multiply(cameraRotation, translation(-tx, 0, -tz)));
     const PV = multiply(P, V);
 
     gl.useProgram(program);
@@ -315,14 +336,17 @@ const solarSystem = [
      for (const body of solarSystem) {
         // Transformations
         const S = scale(body.radius, body.radius, body.radius);
-        const spin = rotationY(t * body.rotSpeed* document.getElementById('rotation-multiplier').value);
+        const spin = rotationY(t * body.rotSpeed * rotMult);
         const trans = translation(body.distance, 0, 0);
-        const orbit = rotationY(t * body.orbitSpeed * document.getElementById('orbit-multiplier').value); // Adjust orbit speed based on slider value
+        const orbit = rotationY(t * body.orbitSpeed * orbitMult); // Adjust orbit speed based on slider value
 
         // Combine into Model matrix (Read right-to-left: Scale -> Spin -> Translate -> Orbit)
         let M = multiply(spin, S);
         M = multiply(trans, M);
         M = multiply(orbit, M);
+
+        // Keep the star skybox centered on the camera target so it never gets clipped
+        if (body.name === "Skybox") M = multiply(translation(tx, 0, tz), M);
 
         const mvp = multiply(PV, M);
         gl.uniformMatrix4fv(uMVP, false, mvp);
